@@ -11,6 +11,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by Awesomepiece on 2016-11-21.
@@ -20,9 +21,9 @@ public class Downloader {
     public static Downloader singleton = new Downloader();
     public static Downloader get() { return singleton; }
 
-    private Queue<Constants.Segment> buffer = new LinkedList<>();
+    private ConcurrentLinkedQueue<Constants.Segment> buffer = new ConcurrentLinkedQueue<>();
     private ArrayList<Constants.BitRate> bitRates = new ArrayList<>();
-    private Object lock = new Object();
+    private final Object lock = new Object();
     private Constants.State state = Constants.State.INITIAL_BUFFERING;
 
     private Downloader() {
@@ -64,24 +65,18 @@ public class Downloader {
                         System.out.println("Complete : " + filePath);
                     }
 
-                    Constants.Segment segment = new Constants.Segment(filePath);
-                    synchronized (lock) {
-                        buffer.add(segment);
-                    }
+                    Constants.Segment segment = new Constants.Segment(filePath, chunkIdx);
+
+                    buffer.add(segment);
 
                     chunkIdx++;
                 }
             }
-        }.run();
+        }.start();
     }
 
     public Constants.Segment getSegment() {
-        if (buffer.isEmpty())
-            return null;
-
-        synchronized (lock) {
-            return buffer.poll();
-        }
+        return buffer.poll();
     }
 
     private String getRequestURL(Constants.BitRate bitRate, int chunkIdx) {

@@ -14,6 +14,7 @@ public class Constants {
     public static final int MEDIUM_RATE_SEC = 42;
     public static final int MAXIMUM_BUFFERING_SEC = 50;
     public static final int SEGMENT_SIZE_SEC = 4;
+    public static final int WAIT_FOR_BUFFER_SEC = 1;
 
     public enum State {
         INITIAL_BUFFERING,
@@ -27,9 +28,11 @@ public class Constants {
 
     public static class Segment {
         public final String filepath;
+        public final int idx;
 
-        public Segment(String filepath) {
+        public Segment(String filepath, int idx) {
             this.filepath = filepath;
+            this.idx = idx;
         }
     }
 }
