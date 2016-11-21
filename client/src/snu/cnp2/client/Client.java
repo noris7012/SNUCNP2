@@ -17,6 +17,30 @@ import java.io.*;
  * Created by noris on 2016-11-18.
  */
 public class Client {
+    private static final int CHUNK_IDX_START = 1;
+    private static final int CHUNK_IDX_END = 150;
+    private static final String URL = "http://cn.snucse.org/";
+    private static final String FILENAME_FORM = "%d/BigBuckBunny_4s%d.m4s";
+
+    public enum BitRate {
+        LEVEL_1 (1473801),
+        LEVEL_2 (2409742),
+        LEVEL_3 (3340509),
+        LEVEL_4 (3936261),
+        COUNT (4);
+
+        int value;
+
+        BitRate(int v) {
+            this.value = v;
+        }
+    }
+
+    public enum State {
+        INITIAL_BUFFERING,
+        BBA
+    }
+
     public static void main(String[] args) throws IOException {
         Client cmd = new Client();
 //        String xml = cmd.read("resource\\BigBuckBunny_4s3.m4s");
@@ -34,27 +58,60 @@ public class Client {
     }
 
     public void downloadFile() {
-        try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
-            String url = "http://cn.snucse.org/1473801/BigBuckBunny_4s3.m4s";
-            HttpGet get = new HttpGet(url);
+        for(int chunkIdx = CHUNK_IDX_START; chunkIdx <= CHUNK_IDX_END; chunkIdx++) {
+            try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
+                // get proper url
+                BitRate bitRate = getBBA(chunkIdx);
+                String url = getRequestURL(bitRate, chunkIdx);
+                HttpGet get = new HttpGet(url);
 
-            HttpResponse response = client.execute(get);
+                HttpResponse response = client.execute(get);
 
-            // TODO Entity Null Check
-            HttpEntity entity = response.getEntity();
+                // TODO Entity Null Check
 
-            String filePath = "sample.txt";
+                HttpEntity entity = response.getEntity();
 
-            try (BufferedInputStream bis = new BufferedInputStream(entity.getContent());
-                 BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File(filePath)))) {
-                int inByte;
-                while((inByte = bis.read()) != -1)
-                    bos.write(inByte);
+                if(entity == null) {
+                    System.err.print("Request Failed : (" + url + ")");
+                    continue;
+                }
+
+                String filePath = String.format(FILENAME_FORM, bitRate, chunkIdx);
+
+                try (BufferedInputStream bis = new BufferedInputStream(entity.getContent());
+                     BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File(filePath)))) {
+                    int inByte;
+                    while((inByte = bis.read()) != -1)
+                        bos.write(inByte);
+                } catch (IOException e) {
+
+                }
             } catch (IOException e) {
-
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+    }
+
+    private String getRequestURL(BitRate bitRate, int chunkIdx) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(URL)
+            .append(String.format(FILENAME_FORM, bitRate.value, chunkIdx));
+
+        return sb.toString();
+    }
+
+    private BitRate getBBA(int chunkIdx) {
+        // TODO
+
+        // 4 sec per chunk. chunk idx starts from 1.
+        int elapsedSec = (chunkIdx - 1) * 4;
+
+        if(elapsedSec <= 8) {
+            return BitRate.LEVEL_1;
+        } else if(elapsedSec <= 42) {
+            int mediumLevelCount = BitRate.COUNT.value - 2;
+
+        }
+
     }
 }
