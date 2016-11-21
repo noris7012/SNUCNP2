@@ -21,9 +21,9 @@ public class Constants {
         BUFFERING
     }
 
-    public static class BitRate {
+    public static class FrameRate {
         public final String filepath;
-        public BitRate(String filepath) { this.filepath = filepath; }
+        public FrameRate(String filepath) { this.filepath = filepath; }
     }
 
     public static class Segment {

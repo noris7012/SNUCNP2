@@ -18,12 +18,12 @@ public class Client {
 //        cmd.downloadFile();
 
         // start downloader
-        Downloader.get().clearBitRate();
+        Downloader.get().clearFrameRate();
 
-        Downloader.get().addBitRate(new Constants.BitRate("1473801"))
-                        .addBitRate(new Constants.BitRate("2409742"))
-                        .addBitRate(new Constants.BitRate("3340509"))
-                        .addBitRate(new Constants.BitRate("3936261"));
+        Downloader.get().addFrameRate(new Constants.FrameRate("1473801"))
+                        .addFrameRate(new Constants.FrameRate("2409742"))
+                        .addFrameRate(new Constants.FrameRate("3340509"))
+                        .addFrameRate(new Constants.FrameRate("3936261"));
 
         Downloader.get().run();
     }

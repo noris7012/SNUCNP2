@@ -13,13 +13,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Created by Awesomepiece on 2016-11-21.
  */
-public class Downloader {
+    public class Downloader {
 
     public static Downloader singleton = new Downloader();
     public static Downloader get() { return singleton; }
 
     private ConcurrentLinkedQueue<Constants.Segment> buffer = new ConcurrentLinkedQueue<>();
-    private ArrayList<Constants.BitRate> bitRates = new ArrayList<>();
+    private ArrayList<Constants.FrameRate> frameRates = new ArrayList<>();
     private final Object lock = new Object();
     private Constants.State state = Constants.State.INITIAL_BUFFERING;
 
@@ -27,19 +27,19 @@ public class Downloader {
 
     }
 
-    public void clearBitRate() {
-        bitRates.clear();
+    public void clearFrameRate() {
+        frameRates.clear();
     }
 
-    public Downloader addBitRate(Constants.BitRate bitRate) {
-        bitRates.add(bitRate);
+    public Downloader addFrameRate(Constants.FrameRate frameRate) {
+        frameRates.add(frameRate);
 
         return this;
     }
 
     public void run() {
-        if(bitRates.size() < 3) {
-            System.err.println("Please Add BitRate Information.");
+        if(frameRates.size() < 3) {
+            System.err.println("Please Add FrameRate Information.");
             return;
         }
 
@@ -68,9 +68,9 @@ public class Downloader {
                         continue;
                     }
 
-                    Constants.BitRate bitRate = getBBA();
+                    Constants.FrameRate frameRate = getBBA();
 
-                    String filePath = downloadFile(chunkIdx, bitRate);
+                    String filePath = downloadFile(chunkIdx, frameRate);
                     if(filePath != null) {
                         System.out.println("Complete : " + filePath);
                         Constants.Segment segment = new Constants.Segment(filePath, chunkIdx);
@@ -88,43 +88,43 @@ public class Downloader {
         return buffer.poll();
     }
 
-    private String getRequestURL(Constants.BitRate bitRate, int chunkIdx) {
+    private String getRequestURL(Constants.FrameRate frameRate, int chunkIdx) {
         StringBuilder sb = new StringBuilder();
         sb.append(Constants.URL)
-                .append(String.format(Constants.FILENAME_FORM, bitRate.filepath, chunkIdx));
+                .append(String.format(Constants.FILENAME_FORM, frameRate.filepath, chunkIdx));
 
         return sb.toString();
     }
 
-    private Constants.BitRate getBBA() {
+    private Constants.FrameRate getBBA() {
         // Lock 이 필요할까? 필요없을 것 같은데
         int sec = buffer.size() * Constants.SEGMENT_SIZE_SEC;
 
         if (sec <= Constants.MINIMUM_RATE_SEC)
-            return bitRates.get(0);
+            return frameRates.get(0);
         else if (sec <= Constants.MEDIUM_RATE_SEC) {
             int mediumRange = Constants.MEDIUM_RATE_SEC - Constants.MINIMUM_RATE_SEC;
-            int mediumCount = bitRates.size() - 2;
+            int mediumCount = frameRates.size() - 2;
             int secDiff = mediumRange / mediumCount;
 
             for(int i = 0; i < mediumCount; i++) {
                 if(sec <= Constants.MINIMUM_RATE_SEC + (secDiff * (i + 1))) {
-                    return bitRates.get(i + 1);
+                    return frameRates.get(i + 1);
                 }
             }
         }
         else
-            return bitRates.get(bitRates.size() - 1);
+            return frameRates.get(frameRates.size() - 1);
 
-        return bitRates.get(0);
+        return frameRates.get(0);
     }
 
-    private String downloadFile(int chunkIdx, Constants.BitRate bitRate) {
-        System.out.println("Try Download (" + chunkIdx + ") rate : (" + bitRate.filepath + ") buffer(sec) : (" + buffer.size() * 4 + ")");
+    private String downloadFile(int chunkIdx, Constants.FrameRate frameRate) {
+        System.out.println("Try Download (" + chunkIdx + ") rate : (" + frameRate.filepath + ") buffer(sec) : (" + buffer.size() * 4 + ")");
 
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
             // get proper url
-            String url = getRequestURL(bitRate, chunkIdx);
+            String url = getRequestURL(frameRate, chunkIdx);
             HttpGet get = new HttpGet(url);
 
             HttpResponse response = client.execute(get);
@@ -136,7 +136,7 @@ public class Downloader {
                 return null;
             }
 
-            String filePath = String.format(Constants.FILENAME_FORM2, chunkIdx, bitRate.filepath);
+            String filePath = String.format(Constants.FILENAME_FORM2, chunkIdx, frameRate.filepath);
 
             try (BufferedInputStream bis = new BufferedInputStream(entity.getContent());
                  BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File(filePath)))) {
