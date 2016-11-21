@@ -30,7 +30,7 @@ public class Downloader {
             @Override
             public void run() {
                 for(int chunkIdx = Constants.CHUNK_IDX_START; chunkIdx <= Constants.CHUNK_IDX_END; chunkIdx++) {
-                    Constants.BitRate bitRate = getBBA(chunkIdx);
+                    Constants.BitRate bitRate = getBBA();
 
                     String filePath = downloadFile(chunkIdx, bitRate);
                     if (filePath == null) {
@@ -64,7 +64,7 @@ public class Downloader {
         return sb.toString();
     }
 
-    private Constants.BitRate getBBA(int chunkIdx) {
+    private Constants.BitRate getBBA() {
         // Lock 이 필요할까? 필요없을 것 같은데
         int size = buffer.size();
 
