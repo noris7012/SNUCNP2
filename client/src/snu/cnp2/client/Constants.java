@@ -18,7 +18,7 @@ public class Constants {
 
     public enum State {
         INITIAL_BUFFERING,
-        BBA
+        BUFFERING
     }
 
     public static class BitRate {

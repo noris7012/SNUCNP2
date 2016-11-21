@@ -5,12 +5,9 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.execchain.MinimalClientExec;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -54,22 +51,34 @@ public class Downloader {
                 int chunkIdx = Constants.CHUNK_IDX_START;
 
                 while(chunkIdx <= Constants.CHUNK_IDX_END) {
+                    // 초기 버퍼링 끝났는지 확인
+                    if(state == Constants.State.INITIAL_BUFFERING &&
+                            buffer.size() * Constants.SEGMENT_SIZE_SEC > Constants.INITIAL_BUFFERING_SEC) {
+                        state = Constants.State.BUFFERING;
+                        Player.get().run();
+                    }
+
                     // 버퍼 꽉 찼으면 대기
-                    if((buffer.size() + 1) * Constants.SEGMENT_SIZE_SEC > Constants.MAXIMUM_BUFFERING_SEC)
+                    if((buffer.size() + 1) * Constants.SEGMENT_SIZE_SEC > Constants.MAXIMUM_BUFFERING_SEC) {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         continue;
+                    }
 
                     Constants.BitRate bitRate = getBBA();
 
                     String filePath = downloadFile(chunkIdx, bitRate);
                     if(filePath != null) {
                         System.out.println("Complete : " + filePath);
+                        Constants.Segment segment = new Constants.Segment(filePath, chunkIdx);
+                        buffer.add(segment);
+                        chunkIdx++;
+                    } else {
+                        System.err.println("Failed to download chunk #" + chunkIdx);
                     }
-
-                    Constants.Segment segment = new Constants.Segment(filePath, chunkIdx);
-
-                    buffer.add(segment);
-
-                    chunkIdx++;
                 }
             }
         }.start();
@@ -91,30 +100,21 @@ public class Downloader {
         // Lock 이 필요할까? 필요없을 것 같은데
         int sec = buffer.size() * Constants.SEGMENT_SIZE_SEC;
 
-        if(state == Constants.State.INITIAL_BUFFERING) {
-            if(sec > Constants.INITIAL_BUFFERING_SEC) {
-                state = Constants.State.BBA;
-                return getBBA();
-            }
-
+        if (sec <= Constants.MINIMUM_RATE_SEC)
             return bitRates.get(0);
-        } else {
-            if (sec <= Constants.MINIMUM_RATE_SEC)
-                return bitRates.get(0);
-            else if (sec <= Constants.MEDIUM_RATE_SEC) {
-                int mediumRange = Constants.MEDIUM_RATE_SEC - Constants.MINIMUM_RATE_SEC;
-                int mediumCount = bitRates.size() - 2;
-                int secDiff = mediumRange / mediumCount;
+        else if (sec <= Constants.MEDIUM_RATE_SEC) {
+            int mediumRange = Constants.MEDIUM_RATE_SEC - Constants.MINIMUM_RATE_SEC;
+            int mediumCount = bitRates.size() - 2;
+            int secDiff = mediumRange / mediumCount;
 
-                for(int i = 0; i < mediumCount; i++) {
-                    if(sec <= Constants.MINIMUM_RATE_SEC + (secDiff * (i + 1))) {
-                        return bitRates.get(i + 1);
-                    }
+            for(int i = 0; i < mediumCount; i++) {
+                if(sec <= Constants.MINIMUM_RATE_SEC + (secDiff * (i + 1))) {
+                    return bitRates.get(i + 1);
                 }
             }
-            else
-                return bitRates.get(bitRates.size() - 1);
         }
+        else
+            return bitRates.get(bitRates.size() - 1);
 
         return bitRates.get(0);
     }

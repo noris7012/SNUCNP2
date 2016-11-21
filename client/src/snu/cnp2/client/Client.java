@@ -17,6 +17,7 @@ public class Client {
 //        System.err.println(xml);
 //        cmd.downloadFile();
 
+        // start downloader
         Downloader.get().clearBitRate();
 
         Downloader.get().addBitRate(new Constants.BitRate("1473801"))
@@ -25,7 +26,6 @@ public class Client {
                         .addBitRate(new Constants.BitRate("3936261"));
 
         Downloader.get().run();
-        Player.get().run();
     }
 
     public String read(String videoFilePath) throws IOException {
