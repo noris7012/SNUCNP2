@@ -5,8 +5,10 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.execchain.MinimalClientExec;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -19,29 +21,55 @@ public class Downloader {
     public static Downloader get() { return singleton; }
 
     private Queue<Constants.Segment> buffer = new LinkedList<>();
+    private ArrayList<Constants.BitRate> bitRates = new ArrayList<>();
     private Object lock = new Object();
+    private Constants.State state = Constants.State.INITIAL_BUFFERING;
 
     private Downloader() {
 
     }
 
+    public void clearBitRate() {
+        bitRates.clear();
+    }
+
+    public Downloader addBitRate(Constants.BitRate bitRate) {
+        bitRates.add(bitRate);
+
+        return this;
+    }
+
     public void run() {
+        if(bitRates.size() < 3) {
+            System.err.println("Please Add BitRate Information.");
+            return;
+        }
+
         new Thread(){
             @Override
             public void run() {
-                for(int chunkIdx = Constants.CHUNK_IDX_START; chunkIdx <= Constants.CHUNK_IDX_END; chunkIdx++) {
+                state = Constants.State.INITIAL_BUFFERING;
+
+                int chunkIdx = Constants.CHUNK_IDX_START;
+
+                while(chunkIdx <= Constants.CHUNK_IDX_END) {
+                    // 버퍼 꽉 찼으면 대기
+                    if((buffer.size() + 1) * Constants.SEGMENT_SIZE_SEC > Constants.MAXIMUM_BUFFERING_SEC)
+                        continue;
+
                     Constants.BitRate bitRate = getBBA();
 
                     String filePath = downloadFile(chunkIdx, bitRate);
-                    if (filePath == null) {
-                        System.out.println("FilePath is null");
-                        continue;
+                    if(filePath != null) {
+                        System.out.println("Complete : " + filePath);
                     }
 
                     Constants.Segment segment = new Constants.Segment(filePath);
                     synchronized (lock) {
                         buffer.add(segment);
                     }
+
+                    chunkIdx++;
                 }
             }
         }.run();
@@ -59,44 +87,52 @@ public class Downloader {
     private String getRequestURL(Constants.BitRate bitRate, int chunkIdx) {
         StringBuilder sb = new StringBuilder();
         sb.append(Constants.URL)
-                .append(String.format(Constants.FILENAME_FORM, bitRate.value, chunkIdx));
+                .append(String.format(Constants.FILENAME_FORM, bitRate.filepath, chunkIdx));
 
         return sb.toString();
     }
 
     private Constants.BitRate getBBA() {
         // Lock 이 필요할까? 필요없을 것 같은데
-        int size = buffer.size();
+        int sec = buffer.size() * Constants.SEGMENT_SIZE_SEC;
 
-        if (size * 4 <= 8)
-            return Constants.BitRate.LEVEL_1;
-        else if (size * 4 <= 25)
-            return Constants.BitRate.LEVEL_2;
-        else if (size * 4 <= 42)
-            return Constants.BitRate.LEVEL_3;
-        else
-            return Constants.BitRate.LEVEL_4;
+        if(state == Constants.State.INITIAL_BUFFERING) {
+            if(sec > Constants.INITIAL_BUFFERING_SEC) {
+                state = Constants.State.BBA;
+                return getBBA();
+            }
 
-//        // 4 sec per chunk. chunk idx starts from 1.
-//        int elapsedSec = (chunkIdx - 1) * 4;
-//
-//        if(elapsedSec <= 8) {
-//            return Constants.BitRate.LEVEL_1;
-//        } else if(elapsedSec <= 42) {
-//            int mediumLevelCount = Constants.BitRate.COUNT.value - 2;
-//
-//        }
+            return bitRates.get(0);
+        } else {
+            if (sec <= Constants.MINIMUM_RATE_SEC)
+                return bitRates.get(0);
+            else if (sec <= Constants.MEDIUM_RATE_SEC) {
+                int mediumRange = Constants.MEDIUM_RATE_SEC - Constants.MINIMUM_RATE_SEC;
+                int mediumCount = bitRates.size() - 2;
+                int secDiff = mediumRange / mediumCount;
+
+                for(int i = 0; i < mediumCount; i++) {
+                    if(sec <= Constants.MINIMUM_RATE_SEC + (secDiff * (i + 1))) {
+                        return bitRates.get(i + 1);
+                    }
+                }
+            }
+            else
+                return bitRates.get(bitRates.size() - 1);
+        }
+
+        return bitRates.get(0);
     }
 
     private String downloadFile(int chunkIdx, Constants.BitRate bitRate) {
+        System.out.println("Try Download (" + chunkIdx + ") rate : (" + bitRate.filepath + ") buffer(sec) : (" + buffer.size() * 4 + ")");
+
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
             // get proper url
             String url = getRequestURL(bitRate, chunkIdx);
             HttpGet get = new HttpGet(url);
 
             HttpResponse response = client.execute(get);
-
-            // TODO Entity Null Check
 
             HttpEntity entity = response.getEntity();
 
@@ -105,7 +141,7 @@ public class Downloader {
                 return null;
             }
 
-            String filePath = String.format(Constants.FILENAME_FORM2, chunkIdx, bitRate.value);
+            String filePath = String.format(Constants.FILENAME_FORM2, chunkIdx, bitRate.filepath);
 
             try (BufferedInputStream bis = new BufferedInputStream(entity.getContent());
                  BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File(filePath)))) {

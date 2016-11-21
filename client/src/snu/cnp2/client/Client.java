@@ -3,13 +3,6 @@ package snu.cnp2.client;
 import com.coremedia.iso.IsoFile;
 import com.googlecode.mp4parser.boxes.apple.AppleNameBox;
 import com.googlecode.mp4parser.util.Path;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 
 import java.io.*;
 
@@ -23,6 +16,13 @@ public class Client {
 //        String xml = cmd.read("resource\\BigBuckBunny_4s3.m4s");
 //        System.err.println(xml);
 //        cmd.downloadFile();
+
+        Downloader.get().clearBitRate();
+
+        Downloader.get().addBitRate(new Constants.BitRate("1473801"))
+                        .addBitRate(new Constants.BitRate("2409742"))
+                        .addBitRate(new Constants.BitRate("3340509"))
+                        .addBitRate(new Constants.BitRate("3936261"));
 
         Downloader.get().run();
     }

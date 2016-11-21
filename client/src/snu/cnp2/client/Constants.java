@@ -7,26 +7,22 @@ public class Constants {
     public static final int CHUNK_IDX_START = 1;
     public static final int CHUNK_IDX_END = 150;
     public static final String URL = "http://cn.snucse.org/";
-    public static final String FILENAME_FORM  = "%d/BigBuckBunny_4s%d.m4s";
-    public static final String FILENAME_FORM2 = System.getProperty("user.dir") + "/BigBuckBunny_4s%d_%d.m4s";
-
-    public enum BitRate {
-        LEVEL_1 (1473801),
-        LEVEL_2 (2409742),
-        LEVEL_3 (3340509),
-        LEVEL_4 (3936261),
-        COUNT (4);
-
-        int value;
-
-        BitRate(int v) {
-            this.value = v;
-        }
-    }
+    public static final String FILENAME_FORM  = "%s/BigBuckBunny_4s%d.m4s";
+    public static final String FILENAME_FORM2 = System.getProperty("user.dir") + "/BigBuckBunny_4s%d_%s.m4s";
+    public static final int INITIAL_BUFFERING_SEC = 20;
+    public static final int MINIMUM_RATE_SEC = 8;
+    public static final int MEDIUM_RATE_SEC = 42;
+    public static final int MAXIMUM_BUFFERING_SEC = 50;
+    public static final int SEGMENT_SIZE_SEC = 4;
 
     public enum State {
         INITIAL_BUFFERING,
         BBA
+    }
+
+    public static class BitRate {
+        public final String filepath;
+        public BitRate(String filepath) { this.filepath = filepath; }
     }
 
     public static class Segment {
