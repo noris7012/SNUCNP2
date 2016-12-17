@@ -122,6 +122,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
     private String downloadFile(int chunkIdx, Constants.FrameRate frameRate) {
         System.out.println("Try Download (" + chunkIdx + ") rate : (" + frameRate.filepath + ") buffer(sec) : (" + buffer.size() * 4 + ")");
 
+        String filePath = String.format(Constants.FILENAME_FORM2, chunkIdx, frameRate.filepath);
+        long s = System.currentTimeMillis();
+
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
             // get proper url
             String url = getRequestURL(frameRate, chunkIdx);
@@ -136,8 +139,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
                 return null;
             }
 
-            String filePath = String.format(Constants.FILENAME_FORM2, chunkIdx, frameRate.filepath);
-
             try (BufferedInputStream bis = new BufferedInputStream(entity.getContent());
                  BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File(filePath)))) {
                 int inByte;
@@ -149,6 +150,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
                 System.err.println("IOException : " + e.getMessage());
                 e.printStackTrace();
                 return null;
+            } finally {
+                File file = new File(filePath);
+                long diff = System.currentTimeMillis() - s;
+
+                System.out.println(String.format("Size : %s, Download Time : %s, Speed : %s", file.length(), diff, file.length() / (diff / 1000f) / 1024f ));
             }
         } catch (IOException e) {
             System.err.println("IOException : " + e.getMessage());
